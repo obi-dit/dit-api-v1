@@ -11,7 +11,7 @@ async function bootstrap() {
   app.enableCors();
   app.use(bodyParser.json({ limit: '60mb' }));
   app.use(bodyParser.urlencoded({ limit: '60mb', extended: true }));
-  const globalPrefix = process.env.GlOBAL_PREFIX;
+  const globalPrefix = process.env.PREFIX;
   app.setGlobalPrefix(globalPrefix);
   await app.listen(process.env.PORT, () => {
     console.log('App running on Port 4000');
