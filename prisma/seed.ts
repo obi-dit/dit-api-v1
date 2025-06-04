@@ -6,18 +6,21 @@ async function main() {
   const programs = [
     {
       title: 'AI Essentials Program',
+      installmentalFee: 250,
       description:
         'Gain foundational knowledge of Artificial Intelligence, machine learning, and practical tools.',
       fee: 8500,
     },
     {
       title: 'IT Fundamentals Program',
+      installmentalFee: 250,
       description:
         'Understand the basics of IT support, systems, and networking principles.',
       fee: 6500,
     },
     {
       title: 'Helpdesk Support Program',
+      installmentalFee: 250,
       description:
         'Prepare for a career in tech support, troubleshooting, and customer service roles.',
       fee: 6500,

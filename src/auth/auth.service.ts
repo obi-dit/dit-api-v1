@@ -13,7 +13,7 @@ import { MessageEnum } from 'src/utils/enum';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { User } from '@prisma/client';
-
+import { CreateEnrollmentDto } from '../enrollment/dto/create.enrollment.dto';
 @Injectable()
 export class AuthService {
   constructor(
@@ -148,6 +148,35 @@ export class AuthService {
     return {
       success: true,
     };
+  }
+
+  async createDetailsFromEnrollment(
+    createEnrollmentDto: CreateEnrollmentDto,
+  ): Promise<User> {
+    const user = await this.prisma.user.findUnique({
+      where: { email: createEnrollmentDto.email },
+    });
+
+    console.log('log', user);
+    if (user) {
+      throw new Error('You are already enrolled');
+    }
+
+    const defaultPassword = 'default-password';
+    const newPassword = await argon2.hash(defaultPassword);
+
+    const [firstName, lastName] = createEnrollmentDto.name.split(' ');
+
+    const userData = await this.prisma.user.create({
+      data: {
+        email: createEnrollmentDto.email,
+        password: newPassword,
+        firstName: firstName ?? '',
+        lastName: lastName ?? '',
+      },
+    });
+
+    return userData;
   }
   findAll() {
     return `This action returns all auth`;

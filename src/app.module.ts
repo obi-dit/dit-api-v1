@@ -9,9 +9,13 @@ import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import configuration from './config/configuration';
-
+import { EnrollmentModule } from './enrollment/enrollment.module';
+import { ProgramModule } from './programs/program.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { BackgroundJobModule } from './background_jobs/backgroundJob.module';
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     EventEmitterModule.forRoot(),
     PrismaModule,
     ConfigModule.forRoot({
@@ -19,6 +23,7 @@ import configuration from './config/configuration';
       envFilePath: '.env',
       load: [configuration],
     }),
+    BackgroundJobModule,
 
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -29,6 +34,8 @@ import configuration from './config/configuration';
       }),
     }),
     AuthModule,
+    EnrollmentModule,
+    ProgramModule,
   ],
   controllers: [AppController],
   providers: [

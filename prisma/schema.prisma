@@ -23,6 +23,7 @@ model User {
   isVerified  Boolean      @default(false)
   enrollments Enrollment[]
   createdAt   DateTime     @default(now())
+  transaction Transaction[]
 }
 
 model VerifyToken {
@@ -35,20 +36,50 @@ model Program {
   id          String       @id @default(uuid())
   title       String       @unique
   description String
-  fee         Float
+  installmentalFee Float
+  fee         Float?         @default(0.00)
   enrollments Enrollment[]
 }
 
 model Enrollment {
-  id        String   @id @default(uuid())
-  student   User     @relation(fields: [studentId], references: [id])
-  studentId String
-  program   Program  @relation(fields: [programId], references: [id])
-  programId String
-  status    String   @default("pending") // pending | approved | rejected
-  createdAt DateTime @default(now())
+  id            String        @id @default(uuid())
+  student       User          @relation(fields: [studentId], references: [id])
+  studentId     String
+  program       Program       @relation(fields: [programId], references: [id])
+  programId     String
+  status        String        @default("pending") // pending | approved | rejected
+  price         String
+  isInstallment Boolean       @default(false)
+  createdAt     DateTime      @default(now())
 
   @@unique([studentId, programId])
+}
+
+model Transaction {
+  id            String      @id @default(uuid())
+  entityId      String
+  amount        Float
+  status        TransactionStatus @default(UNPAID) // pending | success | failed
+  reference     String      @unique
+  paymentMethod String      // e.g. "card", "bank", "wallet"
+  paymentChannel PaymentChannel   @default(STRIPE)
+  user User @relation(fields: [userId], references: [id])
+  userId String
+
+  attemptDate   DateTime    @default(now())
+}
+
+enum TransactionStatus {
+  UNPAID
+  PAID
+  NO_PAYMENT_REQUIRED
+  EXPIRED
+}
+
+enum PaymentChannel {
+  STRIPE
+  BANK_TRANSFER
+  OTHER
 }
 
 enum Role {
@@ -56,3 +87,4 @@ enum Role {
   ADMIN
   TUTORS
 }
+
