@@ -26,6 +26,32 @@ export class EnrollmentService {
       throw new BadRequestException('ProgramId is required');
     }
 
+    let userData;
+
+    //check if user already exit on the platform
+    const user = await this.prisma.user.findFirst({
+      where: {
+        email: createEnrollmentDto.email,
+      },
+    });
+
+    if (!user) {
+      userData =
+        await this.userService.createDetailsFromEnrollment(createEnrollmentDto);
+    }
+
+    //check if enrollment exist
+    const checkIfEnrollmentExist = await this.prisma.enrollment.findFirst({
+      where: {
+        studentId: user.id,
+        programId: createEnrollmentDto.programId,
+      },
+    });
+
+    if (checkIfEnrollmentExist) {
+      throw new BadRequestException('Enrollment already Exist');
+    }
+
     //find program by program Id
     const program = await this.prisma.program.findFirst({
       where: {
@@ -56,9 +82,11 @@ export class EnrollmentService {
     if (!session) {
       throw new BadRequestException('An error occured generating session');
     }
-
-    const userData =
-      await this.userService.createDetailsFromEnrollment(createEnrollmentDto);
+    const userInfo = await this.prisma.user.findFirst({
+      where: {
+        email: createEnrollmentDto.email,
+      },
+    });
     //create transaction
     await this.prisma.transaction.create({
       data: {
@@ -66,7 +94,7 @@ export class EnrollmentService {
         amount: program.installmentalFee,
         reference: session.id,
         paymentMethod: 'card',
-        userId: userData.id,
+        userId: userInfo.id,
       },
     });
 

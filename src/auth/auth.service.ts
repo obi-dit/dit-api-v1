@@ -159,7 +159,7 @@ export class AuthService {
 
     console.log('log', user);
     if (user) {
-      throw new Error('You are already enrolled');
+      throw new Error('User already exist');
     }
 
     const defaultPassword = 'default-password';
