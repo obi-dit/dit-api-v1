@@ -13,6 +13,7 @@ import { EnrollmentModule } from './enrollment/enrollment.module';
 import { ProgramModule } from './programs/program.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { BackgroundJobModule } from './background_jobs/backgroundJob.module';
+import { NotificationModule } from './notification/notification.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -36,6 +37,7 @@ import { BackgroundJobModule } from './background_jobs/backgroundJob.module';
     AuthModule,
     EnrollmentModule,
     ProgramModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [

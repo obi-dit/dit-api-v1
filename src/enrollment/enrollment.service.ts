@@ -8,6 +8,8 @@ import Stripe from 'stripe';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AuthService } from 'src/auth/auth.service';
 import { TransactionStatus } from '@prisma/client';
+import { NotificationService } from 'src/notification/notification.service';
+import { brevoTemplateConfig } from 'src/utils/helper';
 
 @Injectable()
 export class EnrollmentService {
@@ -15,6 +17,7 @@ export class EnrollmentService {
   public constructor(
     public readonly prisma: PrismaService,
     public readonly userService: AuthService,
+    public readonly notificationService: NotificationService,
   ) {
     this.stripe = new Stripe(process.env.STRIPE_KEY, {
       apiVersion: '2025-05-28.basil',
@@ -104,40 +107,88 @@ export class EnrollmentService {
   }
 
   async backgroundJobServiceForEnrollment() {
-    const allTransaction = await this.prisma.transaction.findMany();
+    // 1. Optimization: Only fetch the transactions that actually need processing.
+    const unpaidTransactions = await this.prisma.transaction.findMany({
+      where: {
+        status: TransactionStatus.UNPAID,
+      },
+      include: {
+        user: true,
+      },
+    });
 
-    for await (let transaction of allTransaction) {
-      if (transaction.status === TransactionStatus.UNPAID) {
+    // 2. Loop through only the unpaid transactions.
+    for (const transaction of unpaidTransactions) {
+      try {
         const session = await this.stripe.checkout.sessions.retrieve(
           transaction.reference,
         );
+
         if (session.status === 'complete') {
-          await this.prisma.transaction.update({
-            where: { id: transaction.id },
-            data: {
-              status: TransactionStatus.PAID,
-            },
+          await this.prisma.$transaction(async (prisma) => {
+            await prisma.transaction.update({
+              where: { id: transaction.id },
+              data: { status: TransactionStatus.PAID },
+            });
+
+            await prisma.enrollment.create({
+              data: {
+                studentId: transaction.userId,
+                programId: transaction.entityId,
+                status: 'approved',
+                price: String(transaction.amount),
+                isInstallment: true,
+              },
+            });
           });
 
-          await this.prisma.enrollment.create({
-            data: {
-              studentId: transaction.userId,
-              programId: transaction.entityId,
-              status: 'approved',
-              price: String(transaction.amount),
-              isInstallment: true,
-            },
+          // 5. NOTIFICATION LOGIC MOVED HERE: Only send emails after a successful payment
+          //    and enrollment.
+          const program = await this.prisma.program.findFirst({
+            where: { id: transaction.entityId },
           });
-        }
 
-        if (session.status === 'expired') {
+          if (!program) {
+            console.error(`Program not found for ID: ${transaction.entityId}`);
+            continue;
+          }
+
+          await this.notificationService
+            .sendNotification(
+              brevoTemplateConfig['Comfirmation_After_Enrollment'],
+              {
+                studentName: `${transaction.user.lastName} ${transaction.user.firstName}`,
+                email: transaction.user.email,
+                programName: program.title,
+                // Using a more readable date format is better for emails than Date.now()
+                startDate: new Date().toLocaleDateString('en-US'),
+                location: 'Microsoft Teams',
+              },
+            )
+            .then(async () => {
+              await this.notificationService.sendNotification(
+                brevoTemplateConfig['Notification_for_new_Student'],
+                {
+                  studentName: `${transaction.user.lastName} ${transaction.user.firstName}`,
+                  email: transaction.user.email,
+                  course: program.title,
+                  enrollmentDate: new Date().toLocaleDateString('en-US'),
+                },
+              );
+            });
+        } else if (session.status === 'expired') {
+          // If the session is expired, update the status and do nothing else.
           await this.prisma.transaction.update({
             where: { id: transaction.id },
-            data: {
-              status: TransactionStatus.EXPIRED,
-            },
+            data: { status: TransactionStatus.EXPIRED },
           });
         }
+      } catch (error) {
+        console.error(
+          `Failed to process transaction ID: ${transaction.id}. Error:`,
+          error,
+        );
+        // Continue to the next transaction in the loop
       }
     }
   }
