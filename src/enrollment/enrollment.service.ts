@@ -46,7 +46,7 @@ export class EnrollmentService {
     //check if enrollment exist
     const checkIfEnrollmentExist = await this.prisma.enrollment.findFirst({
       where: {
-        studentId: user.id,
+        studentId: userData.id,
         programId: createEnrollmentDto.programId,
       },
     });
